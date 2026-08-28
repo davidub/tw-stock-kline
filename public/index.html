@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股真實 K 線查詢</title>
+<style>
+:root{--bg:#08111f;--panel:#101827;--line:#243047;--text:#e5e7eb;--muted:#94a3b8;--blue:#60a5fa;--up:#ef4444;--down:#22c55e;--warn:#f59e0b;--ok:#34d399}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#07101c,#0b1220 35%,#0b1220);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",sans-serif}
+.wrap{max-width:1200px;margin:auto;padding:22px}.header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:27px;margin:0}.subtitle{color:var(--muted);font-size:14px;margin-top:5px}.search{display:flex;gap:9px;flex:1;max-width:520px}
+input{flex:1;min-width:0;background:#0a1322;color:#fff;border:1px solid #2a3951;border-radius:12px;padding:13px 14px;font-size:16px;outline:none}
+button{border:0;border-radius:11px;padding:11px 15px;font-weight:750;cursor:pointer}.primary{background:var(--blue);color:#07111f}
+.panel{background:rgba(16,24,39,.94);border:1px solid #223047;border-radius:17px;box-shadow:0 18px 50px rgba(0,0,0,.2)}
+.status{padding:11px 15px;margin-bottom:14px;font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}.dot.ok{background:var(--ok)}.dot.err{background:#ef4444}
+.summary{padding:19px;margin-bottom:15px}.summary-grid{display:grid;grid-template-columns:1.45fr repeat(6,1fr);gap:16px;align-items:end}
+.stock-code{color:var(--muted);font-size:13px}.stock-name{font-size:24px;font-weight:850;margin-top:4px}.price-row{margin-top:9px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.price{font-size:35px;font-weight:900}.delta{font-size:14px;font-weight:800}.metric small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}.metric strong{font-size:18px}
+.source{font-size:11px;color:#73839b;margin-top:8px}.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:13px 15px;border-bottom:1px solid var(--line)}
+.ranges{display:flex;gap:8px;flex-wrap:wrap}.chip{background:#1e293b;color:#cbd5e1;padding:8px 12px}.chip.active{background:#2563eb;color:#fff}
+.note{font-size:12px;color:var(--muted)}.chart-wrap{padding:14px}canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12px}
+.footer{color:#708097;text-align:center;font-size:12px;padding:17px 3px 4px;line-height:1.7}
+@media(max-width:950px){.summary-grid{grid-template-columns:repeat(3,1fr)}.main-stock{grid-column:1/-1}}
+@media(max-width:600px){.wrap{padding:13px}.search{width:100%;max-width:none}.summary-grid{grid-template-columns:1fr 1fr}.main-stock{grid-column:1/-1}.price{font-size:31px}canvas{height:460px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div><h1>📈 台股真實 K 線查詢</h1><div class="subtitle">後端代抓 TWSE 資料，手機不再受 CORS 限制</div></div>
+    <div class="search"><input id="symbolInput" value="006208" inputmode="numeric" placeholder="例如 2330、006208、00922"><button id="searchBtn" class="primary">查詢</button></div>
+  </div>
+  <div class="panel status"><span class="dot" id="statusDot"></span><span id="statusText">準備查詢…</span></div>
+  <div class="panel summary"><div class="summary-grid">
+    <div class="main-stock"><div class="stock-code" id="symbolText">006208</div><div class="stock-name" id="nameText">—</div><div class="price-row"><span class="price" id="priceText">—</span><span class="delta" id="deltaText">—</span></div><div class="source" id="quoteSource">尚未取得行情</div></div>
+    <div class="metric"><small>開盤</small><strong id="openText">—</strong></div><div class="metric"><small>最高</small><strong id="highText">—</strong></div><div class="metric"><small>最低</small><strong id="lowText">—</strong></div>
+    <div class="metric"><small>昨收</small><strong id="prevText">—</strong></div><div class="metric"><small>成交量</small><strong id="volumeText">—</strong></div><div class="metric"><small>時間</small><strong id="timeText">—</strong></div>
+  </div></div>
+  <div class="panel"><div class="toolbar"><div class="ranges">
+    <button class="chip" data-months="1">1月</button><button class="chip active" data-months="3">3月</button><button class="chip" data-months="6">6月</button><button class="chip" data-months="12">1年</button>
+  </div><div class="note">紅＝上漲、綠＝下跌｜下方＝成交量</div></div><div class="chart-wrap"><canvas id="chart"></canvas></div></div>
+  <div class="footer">資料來自臺灣證券交易所公開介面。本工具僅供資訊展示，不構成投資建議。</div>
+</div>
+<script>
+const $=id=>document.getElementById(id); const state={symbol:"006208",months:3,candles:[]};
+const fmt=v=>v==null?"—":(v>=1000?v.toFixed(0):v>=100?v.toFixed(1):v.toFixed(2));
+const fmtVol=v=>v==null?"—":Math.round(v).toLocaleString("zh-TW")+" 張";
+function status(t,type="loading"){$("statusText").textContent=t;$("statusDot").className="dot"+(type==="ok"?" ok":type==="err"?" err":"")}
+function quote(q){
+  $("symbolText").textContent=state.symbol;$("nameText").textContent=q.name||"—";$("priceText").textContent=fmt(q.close);
+  const ch=(q.close!=null&&q.prev!=null)?q.close-q.prev:q.change; const pct=(ch!=null&&q.prev)?ch/q.prev*100:null; const d=$("deltaText");
+  d.textContent=ch==null?"—":`${ch>=0?"+":""}${fmt(ch)}${pct==null?"":` (${pct>=0?"+":""}${pct.toFixed(2)}%)`}`; d.style.color=ch>=0?"var(--up)":"var(--down)";
+  $("openText").textContent=fmt(q.open);$("highText").textContent=fmt(q.high);$("lowText").textContent=fmt(q.low);$("prevText").textContent=fmt(q.prev);
+  $("volumeText").textContent=fmtVol(q.volumeLots);$("timeText").textContent=q.time||q.date||"—";$("quoteSource").textContent=q.source||"—";
+}
+function draw(){
+  const data=state.candles,c=$("chart"); const dpr=devicePixelRatio||1,r=c.getBoundingClientRect(); c.width=r.width*dpr;c.height=r.height*dpr;const x=c.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);const W=r.width,H=r.height;x.clearRect(0,0,W,H);
+  if(!data.length){x.fillStyle="#94a3b8";x.font="16px sans-serif";x.fillText("沒有 K 線資料",24,42);return}
+  const pad={l:62,r:18,t:18,b:30},volH=105,gap=16,priceH=H-pad.t-pad.b-volH-gap,ps=data.flatMap(v=>[v.high,v.low]);let min=Math.min(...ps),max=Math.max(...ps),e=(max-min)*.07||1;min-=e;max+=e;
+  const maxVol=Math.max(...data.map(v=>v.volumeShares||0),1)*1.12,inner=W-pad.l-pad.r,step=inner/data.length,bw=Math.max(2,Math.min(9,step*.64)),yp=v=>pad.t+(max-v)/(max-min)*priceH,vt=pad.t+priceH+gap,yv=v=>vt+volH-(v/maxVol)*volH;
+  x.font="12px sans-serif";for(let i=0;i<5;i++){let y=pad.t+priceH*i/4;x.strokeStyle="#1f2d42";x.beginPath();x.moveTo(pad.l,y);x.lineTo(W-pad.r,y);x.stroke();x.fillStyle="#8da0b8";x.fillText(fmt(max-(max-min)*i/4),7,y+4)}
+  data.forEach((v,i)=>{let cx=pad.l+step*i+step/2,up=v.close>=v.open;x.strokeStyle=x.fillStyle=up?"#ef4444":"#22c55e";x.beginPath();x.moveTo(cx,yp(v.high));x.lineTo(cx,yp(v.low));x.stroke();let yo=yp(v.open),yc=yp(v.close),top=Math.min(yo,yc),bh=Math.max(1.5,Math.abs(yc-yo));x.fillRect(cx-bw/2,top,bw,bh);let vy=yv(v.volumeShares||0);x.globalAlpha=.55;x.fillRect(cx-bw/2,vy,bw,vt+volH-vy);x.globalAlpha=1});
+}
+async function getJSON(url){const r=await fetch(url);const j=await r.json();if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);return j}
+async function load(){
+  const s=$("symbolInput").value.trim(); if(!/^\d{4,6}$/.test(s)){alert("請輸入 4～6 碼股票代號");return} state.symbol=s;status(`正在查詢 ${s}…`);
+  try{
+    const [hist, snapResult, realResult]=await Promise.all([
+      getJSON(`/api/history/${s}?months=${state.months}`),
+      getJSON(`/api/snapshot/${s}`).catch(e=>null),
+      getJSON(`/api/realtime/${s}`).catch(e=>null)
+    ]);
+    state.candles=hist.data||[]; draw();
+    const q=realResult||snapResult; if(!q) throw new Error("目前無法取得行情");
+    quote(q); status(`已載入 ${q.name||s} 與 ${state.candles.length} 根日 K`,"ok");
+  }catch(e){status(`查詢失敗：${e.message}`,"err")}
+}
+$("searchBtn").onclick=load;$("symbolInput").addEventListener("keydown",e=>{if(e.key==="Enter")load()});
+document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));b.classList.add("active");state.months=Number(b.dataset.months);load()});
+addEventListener("resize",draw); load();
+</script>
+</body></html>
