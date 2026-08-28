@@ -28,19 +28,19 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:750;cursor:poin
 <body>
 <div class="wrap">
   <div class="header">
-    <div><h1>📈 台股真實 K 線查詢</h1><div class="subtitle">後端代抓 TWSE 資料，手機不再受 CORS 限制</div></div>
+    <div><h1>📈 台股真實 K 線查詢</h1><div class="subtitle">自動判斷上市／上櫃，後端代抓 TWSE＋TPEx 公開資料</div></div>
     <div class="search"><input id="symbolInput" value="006208" inputmode="numeric" placeholder="例如 2330、006208、00922"><button id="searchBtn" class="primary">查詢</button></div>
   </div>
   <div class="panel status"><span class="dot" id="statusDot"></span><span id="statusText">準備查詢…</span></div>
   <div class="panel summary"><div class="summary-grid">
-    <div class="main-stock"><div class="stock-code" id="symbolText">006208</div><div class="stock-name" id="nameText">—</div><div class="price-row"><span class="price" id="priceText">—</span><span class="delta" id="deltaText">—</span></div><div class="source" id="quoteSource">尚未取得行情</div></div>
+    <div class="main-stock"><div class="stock-code" id="symbolText">006208</div><div class="stock-name" id="nameText">—</div><div class="price-row"><span class="price" id="priceText">—</span><span class="delta" id="deltaText">—</span></div><div class="source"><span id="marketText">—</span>｜<span id="quoteSource">尚未取得行情</span></div></div>
     <div class="metric"><small>開盤</small><strong id="openText">—</strong></div><div class="metric"><small>最高</small><strong id="highText">—</strong></div><div class="metric"><small>最低</small><strong id="lowText">—</strong></div>
     <div class="metric"><small>昨收</small><strong id="prevText">—</strong></div><div class="metric"><small>成交量</small><strong id="volumeText">—</strong></div><div class="metric"><small>時間</small><strong id="timeText">—</strong></div>
   </div></div>
   <div class="panel"><div class="toolbar"><div class="ranges">
     <button class="chip" data-months="1">1月</button><button class="chip active" data-months="3">3月</button><button class="chip" data-months="6">6月</button><button class="chip" data-months="12">1年</button>
   </div><div class="note">紅＝上漲、綠＝下跌｜下方＝成交量</div></div><div class="chart-wrap"><canvas id="chart"></canvas></div></div>
-  <div class="footer">資料來自臺灣證券交易所公開介面。本工具僅供資訊展示，不構成投資建議。</div>
+  <div class="footer">資料來自臺灣證券交易所（TWSE）與證券櫃檯買賣中心（TPEx）公開介面。本工具僅供資訊展示，不構成投資建議。</div>
 </div>
 <script>
 const $=id=>document.getElementById(id); const state={symbol:"006208",months:3,candles:[]};
@@ -48,7 +48,7 @@ const fmt=v=>v==null?"—":(v>=1000?v.toFixed(0):v>=100?v.toFixed(1):v.toFixed(2
 const fmtVol=v=>v==null?"—":Math.round(v).toLocaleString("zh-TW")+" 張";
 function status(t,type="loading"){$("statusText").textContent=t;$("statusDot").className="dot"+(type==="ok"?" ok":type==="err"?" err":"")}
 function quote(q){
-  $("symbolText").textContent=state.symbol;$("nameText").textContent=q.name||"—";$("priceText").textContent=fmt(q.close);
+  $("symbolText").textContent=state.symbol;$("nameText").textContent=q.name||"—";$("marketText").textContent=q.market==="TPEx"?"上櫃 TPEx":"上市 TWSE";$("priceText").textContent=fmt(q.close);
   const ch=(q.close!=null&&q.prev!=null)?q.close-q.prev:q.change; const pct=(ch!=null&&q.prev)?ch/q.prev*100:null; const d=$("deltaText");
   d.textContent=ch==null?"—":`${ch>=0?"+":""}${fmt(ch)}${pct==null?"":` (${pct>=0?"+":""}${pct.toFixed(2)}%)`}`; d.style.color=ch>=0?"var(--up)":"var(--down)";
   $("openText").textContent=fmt(q.open);$("highText").textContent=fmt(q.high);$("lowText").textContent=fmt(q.low);$("prevText").textContent=fmt(q.prev);
