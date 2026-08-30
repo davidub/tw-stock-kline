@@ -72,7 +72,87 @@ async function detectMarket(symbol){
   if(b) return b;
   return null;
 }
+// V4：依股票／ETF 代號或中文名稱搜尋
+async function searchInstruments(query){
+  const q = String(query || '').trim().toLowerCase();
+  if(!q) return [];
 
+  const results = [];
+
+  // 上市 TWSE
+  try{
+    const rows = await jsonFetch(
+      'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL'
+    );
+
+    for(const x of rows){
+      const symbol = String(x.Code || '').trim();
+      const name = String(x.Name || '').trim();
+
+      if(
+        symbol.toLowerCase().includes(q) ||
+        name.toLowerCase().includes(q)
+      ){
+        results.push({
+          symbol,
+          name,
+          market:'TWSE'
+        });
+      }
+    }
+  }catch(_e){}
+
+  // 上櫃 TPEx
+  try{
+    const rows = await jsonFetch(
+      'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'
+    );
+
+    for(const x of rows){
+      const symbol = String(
+        x.SecuritiesCompanyCode || x.Code || ''
+      ).trim();
+
+      const name = String(
+        x.CompanyName ||
+        x.SecuritiesCompanyName ||
+        x.Name ||
+        ''
+      ).trim();
+
+      if(
+        symbol.toLowerCase().includes(q) ||
+        name.toLowerCase().includes(q)
+      ){
+        results.push({
+          symbol,
+          name,
+          market:'TPEx'
+        });
+      }
+    }
+  }catch(_e){}
+
+  return results.slice(0,20);
+}
+
+app.get('/api/search', async (req,res)=>{
+  try{
+    const q = String(req.query.q || '').trim();
+
+    if(!q){
+      return res.status(400).json({
+        error:'請輸入股票／ETF 代號或名稱'
+      });
+    }
+
+    const results = await searchInstruments(q);
+    res.json({query:q,results});
+
+  }catch(e){
+    res.status(500).json({error:e.message});
+  }
+});
 app.get('/api/snapshot/:symbol', async (req,res)=>{
   try{
     const symbol=req.params.symbol.trim();
