@@ -30,6 +30,28 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
 .footer{color:#708097;text-align:center;font-size:12px;padding:17px 3px 4px;line-height:1.7}
 @media(max-width:950px){.summary-grid{grid-template-columns:repeat(3,1fr)}.main-stock{grid-column:1/-1}}
 @media(max-width:600px){.wrap{padding:13px}.search{width:100%;max-width:none}.summary-grid{grid-template-columns:1fr 1fr}.main-stock{grid-column:1/-1}.price{font-size:31px}canvas{height:460px}.tooltip{min-width:190px;font-size:12px}}
+#searchSuggestions{
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  margin-top:6px;
+  background:#101827;
+  border:1px solid #243047;
+  border-radius:11px;
+  overflow:hidden;
+  z-index:20;
+  display:none;
+  box-shadow:0 12px 30px rgba(0,0,0,.35);
+}
+.search{position:relative}
+.suggestion-item{
+  padding:11px 14px;
+  cursor:pointer;
+  border-bottom:1px solid #243047;
+}
+.suggestion-item:last-child{border-bottom:0}
+.suggestion-item:hover{background:#1e293b}
 </style>
 </head>
 <body>
@@ -37,6 +59,7 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
   <div class="header">
     <div><h1>📈 台股真實 K 線查詢</h1><div class="subtitle">自動判斷上市／上櫃，後端代抓 TWSE＋TPEx 公開資料</div></div>
     <div class="search"><input id="symbolInput" value="006208"  placeholder="例如 2330、006208、00922"><button id="searchBtn" class="primary">查詢</button></div>
+    <div id="searchSuggestions"></div>
   </div>
 
   <div class="panel status"><span class="dot" id="statusDot"></span><span id="statusText">準備查詢…</span></div>
@@ -243,7 +266,60 @@ async function getJSON(url){
   if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);
   return j;
 }
+const searchInput = $("symbolInput");
+const suggestions = $("searchSuggestions");
+let searchTimer = null;
 
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+
+  const q = searchInput.value.trim();
+
+  if (!q || /^[0-9A-Za-z]{4,6}$/.test(q)) {
+    suggestions.style.display = "none";
+    suggestions.innerHTML = "";
+    return;
+  }
+
+  searchTimer = setTimeout(async () => {
+    try {
+      const data = await getJSON(`/api/search?q=${encodeURIComponent(q)}`);
+
+      if (!data.results || data.results.length === 0) {
+        suggestions.style.display = "none";
+        return;
+      }
+
+      suggestions.innerHTML = data.results.slice(0, 8).map(item => `
+        <div class="suggestion-item"
+             data-symbol="${item.symbol}">
+          <strong>${item.symbol}</strong>
+          &nbsp;&nbsp;${item.name}
+          <small style="float:right;color:#94a3b8">${item.market}</small>
+        </div>
+      `).join("");
+
+      suggestions.style.display = "block";
+
+      suggestions.querySelectorAll(".suggestion-item").forEach(el => {
+        el.addEventListener("click", () => {
+          searchInput.value = el.dataset.symbol;
+          suggestions.style.display = "none";
+          load();
+        });
+      });
+
+    } catch (e) {
+      suggestions.style.display = "none";
+    }
+  }, 300);
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search")) {
+    suggestions.style.display = "none";
+  }
+});
 async function load(){
   let s=$("symbolInput").value.trim();
 if(!s){alert("請輸入股票／ETF 代號或名稱");return}
