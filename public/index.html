@@ -58,9 +58,12 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
 <div class="wrap">
   <div class="header">
     <div><h1>📈 台股真實 K 線查詢</h1><div class="subtitle">自動判斷上市／上櫃，後端代抓 TWSE＋TPEx 公開資料</div></div>
-    <div class="search"><input id="symbolInput" value="006208"  placeholder="例如 2330、006208、00922"><button id="searchBtn" class="primary">查詢</button></div>
-    <div id="searchSuggestions"></div>
-  </div>
+  <div class="search">
+  <input id="symbolInput" value="006208" placeholder="例如 2330、006208、00922">
+  <button id="searchBtn" class="primary">查詢</button>
+  <div id="searchSuggestions"></div>
+</div>
+</div>
 
   <div class="panel status"><span class="dot" id="statusDot"></span><span id="statusText">準備查詢…</span></div>
 
