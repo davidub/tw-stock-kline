@@ -245,8 +245,17 @@ async function getJSON(url){
 }
 
 async function load(){
-  const s=$("symbolInput").value.trim();
-  if(!/^[0-9A-Za-z]{4,6}$/.test(s)){alert("請輸入 4～6 碼股票／ETF 代號");return}
+  let s=$("symbolInput").value.trim();
+if(!s){alert("請輸入股票／ETF 代號或名稱");return}
+
+if(!/^[0-9A-Za-z]{4,6}$/.test(s)){
+  const search=await getJSON(`/api/search?q=${encodeURIComponent(s)}`);
+  if(!search.results || search.results.length===0){
+    alert("找不到這個股票／ETF 名稱");
+    return;
+  }
+  s=search.results[0].symbol;
+}
   state.symbol=s;
   state.hoverIndex=null;
   $("tooltip").style.display="none";
