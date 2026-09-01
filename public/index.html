@@ -139,10 +139,10 @@ button:disabled{opacity:.5;cursor:wait}
   </section>
 
   <section class="panel intraday-panel" aria-labelledby="intradayTitle">
-    <div class="intraday-head"><h2 id="intradayTitle">今日分時走勢</h2><div class="intraday-legend"><span style="color:#fbbf24">● 成交價</span><span style="color:#60a5fa">● 均價</span></div></div>
+    <div class="intraday-head"><h2 id="intradayTitle">今日分時走勢</h2><div class="intraday-legend"><span style="color:#fbbf24">● 成交／中間價</span><span style="color:#60a5fa">● 快照均價</span></div></div>
     <div id="intradayStatus" class="depth-meta" role="status">等待股票查詢完成</div>
     <canvas id="intradayChart" aria-label="今日網頁開啟期間的分時成交價與均價走勢"></canvas>
-    <details class="info-details"><summary>資料說明</summary><div class="depth-note">分時圖從本頁開啟後開始累積每 5 秒取得的成交快照，並非交易所完整逐筆資料；重新整理或切換股票會重新開始。黃線是成交價，藍線是本頁擷取成交量加權均價。一般盤外顯示等待狀態。</div></details>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">分時圖從本頁開啟後開始累積每 5 秒取得的價格快照，並非交易所完整逐筆資料；重新整理或切換股票會重新開始。交易所快照提供成交價時使用成交價，未提供時以最佳買價與賣價的中間值補足並清楚標示。黃線是成交／中間價，藍線是本頁快照均價。一般盤外顯示等待狀態。</div></details>
   </section>
 
   <div class="panel">

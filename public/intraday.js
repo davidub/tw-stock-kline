@@ -6,14 +6,14 @@
     const minute=Number(p.hour)*60+Number(p.minute);
     return {date:`${p.year}-${p.month}-${p.day}`,open:!['Sat','Sun'].includes(p.weekday)&&minute>=540&&minute<810};
   }
-  function reset(next){symbol=next||null;points=[];seen.clear();status.textContent=next?`${next}｜等待一般盤成交快照`:'等待股票查詢完成';draw();}
+  function reset(next){symbol=next||null;points=[];seen.clear();status.textContent=next?`${next}｜等待一般盤價格快照`:'等待股票查詢完成';draw();}
   function add(q){
-    const clock=taipeiClock(),trade=q.lastTrade;
+    const clock=taipeiClock(),trade=q.marketPoint||q.lastTrade;
     if(!clock.open||q.date!==clock.date){status.textContent=`${q.symbol}｜目前非今日一般盤，開盤後將自動累積分時走勢`;draw();return;}
-    if(!trade||!Number.isFinite(trade.price)||seen.has(trade.key)){status.textContent=`${q.symbol}｜分時圖已累積 ${points.length} 個成交快照｜等待下一筆成交`;return;}
-    seen.add(trade.key);points.push({time:trade.time,price:trade.price,lots:Math.max(0,trade.lots||0)});
+    if(!trade||!Number.isFinite(trade.price)||seen.has(trade.key)){status.textContent=`${q.symbol}｜分時圖已累積 ${points.length} 個價格快照｜等待下一次變化`;return;}
+    seen.add(trade.key);points.push({time:trade.time,price:trade.price,lots:Math.max(0,trade.lots||0),kind:trade.kind||'trade'});
     let amount=0,lots=0;for(const p of points){amount+=p.price*Math.max(1,p.lots);lots+=Math.max(1,p.lots);p.average=amount/lots;}
-    status.textContent=`${q.symbol}｜已累積 ${points.length} 個成交快照｜最新 ${trade.time}／${trade.price.toLocaleString('zh-TW')} 元`;
+    status.textContent=`${q.symbol}｜已累積 ${points.length} 個價格快照｜最新 ${trade.time}／${trade.price.toLocaleString('zh-TW',{maximumFractionDigits:2})} 元（${trade.kind==='midquote'?'買賣中間價':'成交價'}）`;
     draw();
   }
   function draw(){
