@@ -20,14 +20,14 @@ async function finish(request,symbol='2330'){
 test('盤中每輪完成後排程，不重疊；背景與關閉自動更新皆停止排程',async()=>{
   const f=fixture('2026-08-31T02:00:00Z');f.api.start('2330','TWSE','test');
   f.elements.depthRefresh.onclick();assert.equal(f.requests.length,1);
-  await finish(f.requests[0]);assert.ok([...f.timers.values()].some(x=>x.ms===10000));
+  await finish(f.requests[0]);assert.ok([...f.timers.values()].some(x=>x.ms===5000));
   f.document.hidden=true;f.events.visibilitychange();assert.equal(f.timers.size,0);
   f.document.hidden=false;f.events.visibilitychange();assert.equal(f.requests.length,2);
   f.elements.depthAuto.checked=false;await finish(f.requests[1]);assert.equal(f.timers.size,0);
 });
 test('盤後時鐘檢查不抓取新行情；切換股票忽略舊回應',async()=>{
   const f=fixture('2026-08-31T12:00:00Z');f.api.start('2330','TWSE','test');
-  await finish(f.requests[0]);[...f.timers.values()].find(x=>x.ms===10000).fn();assert.equal(f.requests.length,1);
+  await finish(f.requests[0]);[...f.timers.values()].find(x=>x.ms===5000).fn();assert.equal(f.requests.length,1);
   f.api.start('6488','TPEx','new');f.api.start('006208','TWSE','latest');
   assert.equal(f.requests[1].options.signal.aborted,true);
   await finish(f.requests[1],'6488');assert.equal(f.elements.depthStatus.textContent,'等待股票查詢完成');
