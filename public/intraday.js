@@ -1,19 +1,26 @@
 (()=>{
   const el=id=>document.getElementById(id),canvas=el('intradayChart'),status=el('intradayStatus');
-  let symbol=null,points=[],seen=new Set();
+  let symbol=null,points=[];
   function taipeiClock(){
     const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
     const minute=Number(p.hour)*60+Number(p.minute);
     return {date:`${p.year}-${p.month}-${p.day}`,open:!['Sat','Sun'].includes(p.weekday)&&minute>=540&&minute<810};
   }
-  function reset(next){symbol=next||null;points=[];seen.clear();status.textContent=next?`${next}｜等待一般盤價格快照`:'等待股票查詢完成';draw();}
+  function reset(next){symbol=next||null;points=[];status.textContent=next?`${next}｜等待一般盤價格快照`:'等待股票查詢完成';draw();}
+  function minuteLabel(q,trade){
+    const d=new Date(q.fetchedAt);
+    if(Number.isFinite(d.getTime()))return d.toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false});
+    return String(trade.time||'').slice(0,5);
+  }
+  function averages(){let amount=0,lots=0;for(const p of points){amount+=p.price*Math.max(1,p.lots);lots+=Math.max(1,p.lots);p.average=amount/lots;}}
   function add(q){
     const clock=taipeiClock(),trade=q.marketPoint||q.lastTrade;
     if(!clock.open||q.date!==clock.date){status.textContent=`${q.symbol}｜目前非今日一般盤，開盤後將自動累積分時走勢`;draw();return;}
-    if(!trade||!Number.isFinite(trade.price)||seen.has(trade.key)){status.textContent=`${q.symbol}｜分時圖已累積 ${points.length} 個價格快照｜等待下一次變化`;return;}
-    seen.add(trade.key);points.push({time:trade.time,price:trade.price,lots:Math.max(0,trade.lots||0),kind:trade.kind||'trade'});
-    let amount=0,lots=0;for(const p of points){amount+=p.price*Math.max(1,p.lots);lots+=Math.max(1,p.lots);p.average=amount/lots;}
-    status.textContent=`${q.symbol}｜已累積 ${points.length} 個價格快照｜最新 ${trade.time}／${trade.price.toLocaleString('zh-TW',{maximumFractionDigits:2})} 元（${trade.kind==='midquote'?'買賣中間價':'成交價'}）`;
+    if(!trade||!Number.isFinite(trade.price)){status.textContent=`${q.symbol}｜已保留 ${points.length} 個分鐘點｜等待價格資料`;return;}
+    const minute=minuteLabel(q,trade),point={time:minute,price:trade.price,lots:Math.max(0,trade.lots||0),kind:trade.kind||'trade'};
+    if(points.at(-1)?.time===minute)points[points.length-1]=point;else points.push(point);
+    averages();
+    status.textContent=`${q.symbol}｜已保留 ${points.length} 個分鐘點｜最新 ${minute}／${trade.price.toLocaleString('zh-TW',{maximumFractionDigits:2})} 元（${trade.kind==='midquote'?'買賣中間價':'成交價'}）`;
     draw();
   }
   function draw(){
