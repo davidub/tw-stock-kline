@@ -36,7 +36,7 @@ const depthController=(()=>{
       return `<tr><td class="quantity depth-buy" style="--bar:${(b?.lots||0)/max*100}%">${format(b?.lots)}</td><td>${format(b?.price)}</td><td class="level">${i+1}</td><td>${format(a?.price)}</td><td class="quantity depth-sell" style="--bar:${(a?.lots||0)/max*100}%">${format(a?.lots)}</td></tr>`;
     }).join('');
     const fetched=new Date(q.fetchedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false});
-    el('depthTime').textContent=`${q.source}｜來源交易日 ${q.date||'未提供'}｜最近成交時間 ${q.lastTradeTime||'未提供'}（不等於五檔更新時間）｜本機取得 ${fetched}。來源未提供可獨立驗證的五檔更新時間。`;
+    el('depthTime').textContent=`交易日 ${q.date||'未提供'}｜最近成交 ${q.lastTradeTime||'未提供'}｜畫面更新 ${fetched}`;
     document.dispatchEvent(new CustomEvent('depth-snapshot',{detail:q}));
   }
   function schedule(){

@@ -67,6 +67,11 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
 .depth-table td.depth-buy{background-image:linear-gradient(#ef444424,#ef444424)}
 .depth-table td.depth-sell{background-image:linear-gradient(#22c55e24,#22c55e24)}
 .depth-note{line-height:1.8;font-size:12px;color:var(--muted)}
+.info-details{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;color:var(--muted);font-size:12px}
+.info-details summary{cursor:pointer;color:#a9bad0;font-weight:700;user-select:none}.info-details[open] summary{margin-bottom:7px}
+.intraday-panel{margin:18px 0;padding:18px}.intraday-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.intraday-head h2{font-size:20px;margin:0}.intraday-legend{display:flex;gap:13px;color:var(--muted);font-size:12px}
+#intradayChart{width:100%;height:285px;margin-top:10px;background:#091321;border-radius:12px;display:block}
 button:disabled{opacity:.5;cursor:wait}
 .flow-panel{margin:18px 0;padding:18px}.flow-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .flow-head h2{margin:0;font-size:20px}.flow-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
@@ -100,6 +105,13 @@ button:disabled{opacity:.5;cursor:wait}
     <div class="metric"><small>行情日期／時間</small><strong id="timeText" style="font-size:14px">—</strong></div>
   </div></div>
 
+  <section class="panel intraday-panel" aria-labelledby="intradayTitle">
+    <div class="intraday-head"><h2 id="intradayTitle">今日分時走勢</h2><div class="intraday-legend"><span style="color:#fbbf24">● 成交價</span><span style="color:#60a5fa">● 均價</span></div></div>
+    <div id="intradayStatus" class="depth-meta" role="status">等待股票查詢完成</div>
+    <canvas id="intradayChart" aria-label="今日網頁開啟期間的分時成交價與均價走勢"></canvas>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">分時圖從本頁開啟後開始累積每 10 秒取得的成交快照，並非交易所完整逐筆資料；重新整理或切換股票會重新開始。黃線是成交價，藍線是本頁擷取成交量加權均價。一般盤外顯示等待狀態。</div></details>
+  </section>
+
   <section class="panel depth-panel" aria-labelledby="depthTitle">
     <div class="depth-header"><h2 id="depthTitle">五檔買賣委託</h2><div class="ranges">
       <label class="note"><input id="depthAuto" type="checkbox" checked> 一般盤每 10 秒更新</label>
@@ -114,7 +126,7 @@ button:disabled{opacity:.5;cursor:wait}
       <tbody id="depthRows"></tbody>
     </table>
     <div id="depthTime" class="depth-meta">尚未取得資料</div>
-    <div class="depth-note">比較的是已揭示的最佳五檔未成交委託張數，不是買賣人數、內外盤成交量或全市場委託。掛單可撤銷，比例不代表股價一定上漲或下跌。<br>一般盤自動查詢時段：台北時間週一至週五 09:00–13:30（不另判斷休市日）；網頁在背景時暫停。來源可能延遲，非逐筆串流；盤後僅供查看最後揭示資料。<br><a href="https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=14" target="_blank" rel="noopener" style="color:var(--blue)">證交所五檔委託說明</a></div>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">比較的是已揭示的最佳五檔未成交委託張數，不是買賣人數、內外盤成交量或全市場委託。掛單可撤銷，比例不代表股價一定上漲或下跌。<br>一般盤自動查詢時段：台北時間週一至週五 09:00–13:30（不另判斷休市日）；網頁在背景時暫停。來源可能延遲，非逐筆串流；盤後僅供查看最後揭示資料。<br><a href="https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=14" target="_blank" rel="noopener" style="color:var(--blue)">證交所五檔委託說明</a></div></details>
   </section>
 
   <div class="panel">
@@ -152,7 +164,7 @@ button:disabled{opacity:.5;cursor:wait}
     </div>
     <canvas id="flowChart" aria-label="網頁開啟期間大單與小單累積淨額圖"></canvas>
     <div id="flowUnknown" class="depth-meta">尚無無法判斷方向的成交</div>
-    <div class="depth-note">這是快照推估，不是「大戶／散戶」身分資料。只累積本頁在一般盤開啟期間、每 10 秒快照碰到的最後一筆成交，期間可能有多筆成交未被取到，因此不可與完整成交明細或券商指標直接比較。方向先依成交價與最佳買賣價判定，價差內再用價格升降推估；無法判斷者另外列出。切換股票、重新整理或修改門檻會歸零。</div>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">這是快照推估，不是「大戶／散戶」身分資料。只累積本頁在一般盤開啟期間、每 10 秒快照碰到的最後一筆成交，期間可能有多筆成交未被取到，因此不可與完整成交明細或券商指標直接比較。方向先依成交價與最佳買賣價判定，價差內再用價格升降推估；無法判斷者另外列出。切換股票、重新整理或修改門檻會歸零。</div></details>
   </section>
 
 
@@ -160,6 +172,7 @@ button:disabled{opacity:.5;cursor:wait}
 </div>
 
 <script src="/depth.js"></script>
+<script src="/intraday.js"></script>
 <script src="/trade-flow-core.js"></script>
 <script src="/trade-flow.js"></script>
 <script src="/chart-indicators.js"></script>
