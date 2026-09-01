@@ -105,13 +105,6 @@ button:disabled{opacity:.5;cursor:wait}
     <div class="metric"><small>行情日期／時間</small><strong id="timeText" style="font-size:14px">—</strong></div>
   </div></div>
 
-  <section class="panel intraday-panel" aria-labelledby="intradayTitle">
-    <div class="intraday-head"><h2 id="intradayTitle">今日分時走勢</h2><div class="intraday-legend"><span style="color:#fbbf24">● 成交價</span><span style="color:#60a5fa">● 均價</span></div></div>
-    <div id="intradayStatus" class="depth-meta" role="status">等待股票查詢完成</div>
-    <canvas id="intradayChart" aria-label="今日網頁開啟期間的分時成交價與均價走勢"></canvas>
-    <details class="info-details"><summary>資料說明</summary><div class="depth-note">分時圖從本頁開啟後開始累積每 10 秒取得的成交快照，並非交易所完整逐筆資料；重新整理或切換股票會重新開始。黃線是成交價，藍線是本頁擷取成交量加權均價。一般盤外顯示等待狀態。</div></details>
-  </section>
-
   <section class="panel depth-panel" aria-labelledby="depthTitle">
     <div class="depth-header"><h2 id="depthTitle">五檔買賣委託</h2><div class="ranges">
       <label class="note"><input id="depthAuto" type="checkbox" checked> 一般盤每 10 秒更新</label>
@@ -127,6 +120,13 @@ button:disabled{opacity:.5;cursor:wait}
     </table>
     <div id="depthTime" class="depth-meta">尚未取得資料</div>
     <details class="info-details"><summary>資料說明</summary><div class="depth-note">比較的是已揭示的最佳五檔未成交委託張數，不是買賣人數、內外盤成交量或全市場委託。掛單可撤銷，比例不代表股價一定上漲或下跌。<br>一般盤自動查詢時段：台北時間週一至週五 09:00–13:30（不另判斷休市日）；網頁在背景時暫停。來源可能延遲，非逐筆串流；盤後僅供查看最後揭示資料。<br><a href="https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=14" target="_blank" rel="noopener" style="color:var(--blue)">證交所五檔委託說明</a></div></details>
+  </section>
+
+  <section class="panel intraday-panel" aria-labelledby="intradayTitle">
+    <div class="intraday-head"><h2 id="intradayTitle">今日分時走勢</h2><div class="intraday-legend"><span style="color:#fbbf24">● 成交價</span><span style="color:#60a5fa">● 均價</span></div></div>
+    <div id="intradayStatus" class="depth-meta" role="status">等待股票查詢完成</div>
+    <canvas id="intradayChart" aria-label="今日網頁開啟期間的分時成交價與均價走勢"></canvas>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">分時圖從本頁開啟後開始累積每 10 秒取得的成交快照，並非交易所完整逐筆資料；重新整理或切換股票會重新開始。黃線是成交價，藍線是本頁擷取成交量加權均價。一般盤外顯示等待狀態。</div></details>
   </section>
 
   <div class="panel">
