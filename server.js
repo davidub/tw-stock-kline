@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
+const {parseOrderBook}=require('./orderbook');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -15,6 +16,11 @@ function asNum(v){
   return Number.isFinite(n) ? n : null;
 }
 function rocDateToISO(s){
+  const compact = String(s || '').replace(/[-/]/g,'');
+  if(/^\d{7,8}$/.test(compact)){
+    const year = compact.length === 7 ? Number(compact.slice(0,3))+1911 : Number(compact.slice(0,4));
+    return `${year}-${compact.slice(-4,-2)}-${compact.slice(-2)}`;
+  }
   const p = String(s).trim().split('/');
   if(p.length !== 3) return String(s);
   return `${Number(p[0])+1911}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}`;
@@ -26,13 +32,13 @@ function slashMonth(d){
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/01`;
 }
 function monthList(count){
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Taipei'}));
   const out=[];
   for(let i=count-1;i>=0;i--) out.push(new Date(now.getFullYear(), now.getMonth()-i, 1));
   return out;
 }
 async function jsonFetch(url){
-  const r = await fetch(url,{headers:UA});
+  const r = await fetch(url,{headers:UA,signal:AbortSignal.timeout(15000)});
   if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
 }
@@ -43,7 +49,7 @@ async function twseSnapshot(symbol){
   if(!x) return null;
   const close=asNum(x.ClosingPrice), change=asNum(x.Change);
   return {
-    market:'TWSE', symbol, name:String(x.Name||symbol).trim(), date:x.Date,
+    market:'TWSE', symbol, name:String(x.Name||symbol).trim(), date:rocDateToISO(x.Date),
     open:asNum(x.OpeningPrice), high:asNum(x.HighestPrice), low:asNum(x.LowestPrice), close, change,
     prev:(close!==null&&change!==null)?close-change:null,
     volumeLots:(asNum(x.TradeVolume)||0)/1000,
@@ -57,7 +63,7 @@ async function tpexSnapshot(symbol){
   if(!x) return null;
   const close=asNum(x.Close), change=asNum(x.Change);
   return {
-    market:'TPEx', symbol, name:String(x.CompanyName || x.SecuritiesCompanyName || x.Name || symbol).trim(), date:x.Date,
+    market:'TPEx', symbol, name:String(x.CompanyName || x.SecuritiesCompanyName || x.Name || symbol).trim(), date:rocDateToISO(x.Date),
     open:asNum(x.Open), high:asNum(x.High), low:asNum(x.Low), close, change,
     prev:(close!==null&&change!==null)?close-change:null,
     volumeLots:(asNum(x.TradingShares)||0)/1000,
@@ -66,10 +72,12 @@ async function tpexSnapshot(symbol){
 }
 
 async function detectMarket(symbol){
-  const a = await twseSnapshot(symbol).catch(()=>null);
+  let failed=false;
+  const a = await twseSnapshot(symbol).catch(()=>{failed=true;return null});
   if(a) return a;
-  const b = await tpexSnapshot(symbol).catch(()=>null);
+  const b = await tpexSnapshot(symbol).catch(()=>{failed=true;return null});
   if(b) return b;
+  if(failed) throw new Error('官方行情來源暫時無法連線，請稍後重試');
   return null;
 }
 // V4：依股票／ETF 代號或中文名稱搜尋
@@ -168,11 +176,12 @@ async function misQuote(symbol, market){
   const j=await jsonFetch(url);
   if(!j.msgArray || !j.msgArray.length) return null;
   const x=j.msgArray[0], z=asNum(x.z), y=asNum(x.y);
+  if(z===null || !x.d) return null;
   return {
     market, symbol, name:x.n || x.nf || symbol,
-    open:asNum(x.o), high:asNum(x.h), low:asNum(x.l), close:z ?? y, prev:y,
+    open:asNum(x.o), high:asNum(x.h), low:asNum(x.l), close:z, prev:y, date:rocDateToISO(x.d),
     volumeLots:asNum(x.v), time:x.t || x.ot || '盤中',
-    source:`TWSE MIS ${market==='TPEx'?'上櫃':'上市'}即時行情`
+    source:`TWSE MIS ${market==='TPEx'?'上櫃':'上市'}最近成交行情（非串流）`
   };
 }
 
@@ -185,6 +194,22 @@ app.get('/api/realtime/:symbol', async (req,res)=>{
     if(!q) return res.status(404).json({error:'目前沒有即時行情'});
     res.json(q);
   }catch(e){ res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/orderbook/:symbol',async(req,res)=>{
+  res.set('Cache-Control','no-store');
+  const symbol=req.params.symbol.trim();
+  const market=req.query.market;
+  if(!/^[0-9A-Za-z]{4,6}$/.test(symbol)||!['TWSE','TPEx'].includes(market)){
+    return res.status(400).json({error:'請提供有效的股票代號與市場'});
+  }
+  try{
+    const ex=market==='TPEx'?'otc':'tse';
+    const j=await jsonFetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${ex}_${encodeURIComponent(symbol)}.tw&json=1&delay=0&_=${Date.now()}`);
+    const row=j.msgArray?.find(x=>x.c===symbol&&x.ex===ex);
+    if(!row)return res.status(404).json({error:'官方目前未提供這檔股票的五檔資料'});
+    res.json(parseOrderBook(row,market));
+  }catch(e){res.status(502).json({error:'五檔來源暫時無法連線，請稍後重試'});}
 });
 
 async function twseMonth(symbol,d){
@@ -224,17 +249,23 @@ async function tpexMonth(symbol,d){
 app.get('/api/history/:symbol', async (req,res)=>{
   try{
     const symbol=req.params.symbol.trim();
-    const months=Math.max(1,Math.min(12,Number(req.query.months)||3));
+    const months=Math.max(1,Math.min(12,Math.floor(Number(req.query.months)||3)));
     const snap=await detectMarket(symbol);
     if(!snap) return res.status(404).json({error:'查不到此上市／上櫃股票或 ETF 代號'});
     const fn=snap.market==='TPEx'?tpexMonth:twseMonth;
     // 順序抓取，降低官方網站短時間大量請求被限流的機率。
     const arrays=[];
-    for(const d of monthList(months)) arrays.push(await fn(symbol,d));
+    const requestedMonths=monthList(months);
+    const fetchMonths=monthList(months+4);
+    for(const d of fetchMonths) arrays.push(await fn(symbol,d));
     const map=new Map();
     arrays.flat().forEach(x=>map.set(x.date,x));
-    const data=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
-    res.json({symbol,market:snap.market,months,data});
+    const allData=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
+    const first=ymdMonth(requestedMonths[0]);
+    const data=allData.filter(x=>x.date.replace(/-/g,'')>=first);
+    const warmup=allData.filter(x=>x.date.replace(/-/g,'')<first);
+    const missingMonths=fetchMonths.filter((_,i)=>!arrays[i].length).map(ymdMonth);
+    res.json({symbol,market:snap.market,months,data,warmup,warning:missingMonths.length ? `有 ${missingMonths.length} 個月份未取得 K 線（含均線計算所需月份），K 線或均線可能不完整` : null});
   }catch(e){ res.status(500).json({error:e.message}); }
 });
 
