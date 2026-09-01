@@ -22,6 +22,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:750;cursor:poin
 .price{font-size:35px;font-weight:900}.delta{font-size:14px;font-weight:800}.metric small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}.metric strong{font-size:18px}
 .source{font-size:11px;color:#73839b;margin-top:8px}.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:13px 15px;border-bottom:1px solid var(--line)}
 .ranges{display:flex;gap:8px;flex-wrap:wrap}.chip{background:#1e293b;color:#cbd5e1;padding:8px 12px}.chip.active{background:#2563eb;color:#fff}
+.chart-options{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.chart-options select{background:#0a1322;color:#fff;border:1px solid #2a3951;border-radius:9px;padding:8px 10px}
 .note{font-size:12px;color:var(--muted)}
 .chart-wrap{padding:14px;position:relative;touch-action:none}
 canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12px}
@@ -52,6 +53,28 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
 }
 .suggestion-item:last-child{border-bottom:0}
 .suggestion-item:hover{background:#1e293b}
+.depth-panel{margin:18px 0;padding:18px}.depth-panel h2{font-size:20px;margin:0}
+.depth-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.depth-meta{color:var(--muted);font-size:12px;line-height:1.8;margin:10px 0}
+.depth-totals{display:flex;justify-content:space-between;gap:12px;margin:16px 0 8px;font-size:15px}
+.depth-buy{color:#ef7777}.depth-sell{color:#4ade80}
+.depth-ratio{height:14px;border-radius:7px;overflow:hidden;background:#334155;display:flex}
+.depth-ratio span{height:100%;transition:width .25s}.depth-ratio .buy{background:#ef4444}.depth-ratio .sell{background:#22c55e}
+.depth-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;font-variant-numeric:tabular-nums}
+.depth-table th,.depth-table td{padding:10px 6px;text-align:right;border-bottom:1px solid var(--line)}
+.depth-table th{color:var(--muted);font-size:12px}.depth-table .level{text-align:center;color:var(--muted);width:12%}
+.depth-table td.quantity{background-repeat:no-repeat;background-position:right center;background-size:var(--bar,0%) 70%}
+.depth-table td.depth-buy{background-image:linear-gradient(#ef444424,#ef444424)}
+.depth-table td.depth-sell{background-image:linear-gradient(#22c55e24,#22c55e24)}
+.depth-note{line-height:1.8;font-size:12px;color:var(--muted)}
+button:disabled{opacity:.5;cursor:wait}
+.flow-panel{margin:18px 0;padding:18px}.flow-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.flow-head h2{margin:0;font-size:20px}.flow-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.flow-card{background:#091321;border:1px solid var(--line);border-radius:12px;padding:13px}.flow-card h3{font-size:15px;margin:0 0 9px}
+.flow-numbers{display:flex;justify-content:space-between;gap:8px;font-size:13px}.flow-net{font-size:20px;font-weight:850;margin-top:10px}
+#flowChart{width:100%;height:260px;background:#091321;border-radius:12px;display:block}
+.flow-setting{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}.flow-setting input{width:76px;padding:7px 8px;font-size:13px}
+@media(max-width:600px){.flow-cards{grid-template-columns:1fr}#flowChart{height:230px}}
 </style>
 </head>
 <body>
@@ -74,8 +97,25 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
     <div class="metric"><small>最低</small><strong id="lowText">—</strong></div>
     <div class="metric"><small>昨收</small><strong id="prevText">—</strong></div>
     <div class="metric"><small>成交量</small><strong id="volumeText">—</strong></div>
-    <div class="metric"><small>時間</small><strong id="timeText">—</strong></div>
+    <div class="metric"><small>行情日期／時間</small><strong id="timeText" style="font-size:14px">—</strong></div>
   </div></div>
+
+  <section class="panel depth-panel" aria-labelledby="depthTitle">
+    <div class="depth-header"><h2 id="depthTitle">五檔買賣委託</h2><div class="ranges">
+      <label class="note"><input id="depthAuto" type="checkbox" checked> 一般盤每 10 秒更新</label>
+      <button class="chip" id="depthRefresh" disabled>更新五檔</button>
+    </div></div>
+    <div id="depthStatus" class="depth-meta" role="status">請先查詢股票</div>
+    <div class="depth-totals"><span class="depth-buy">買方掛單 <strong id="bidTotal">—</strong></span><span class="depth-sell">賣方掛單 <strong id="askTotal">—</strong></span></div>
+    <div class="depth-ratio" aria-hidden="true"><span id="bidBar" class="buy"></span><span id="askBar" class="sell"></span></div>
+    <div id="depthRatio" class="depth-meta">等待五檔資料</div>
+    <table class="depth-table" aria-label="五檔委託價格與數量">
+      <thead><tr><th>買量（張）</th><th>買價（元）</th><th class="level">檔位</th><th>賣價（元）</th><th>賣量（張）</th></tr></thead>
+      <tbody id="depthRows"></tbody>
+    </table>
+    <div id="depthTime" class="depth-meta">尚未取得資料</div>
+    <div class="depth-note">比較的是已揭示的最佳五檔未成交委託張數，不是買賣人數、內外盤成交量或全市場委託。掛單可撤銷，比例不代表股價一定上漲或下跌。<br>一般盤自動查詢時段：台北時間週一至週五 09:00–13:30（不另判斷休市日）；網頁在背景時暫停。來源可能延遲，非逐筆串流；盤後僅供查看最後揭示資料。<br><a href="https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=14" target="_blank" rel="noopener" style="color:var(--blue)">證交所五檔委託說明</a></div>
+  </section>
 
   <div class="panel">
     <div class="toolbar">
@@ -85,7 +125,15 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
         <button class="chip" data-months="6">6月</button>
         <button class="chip" data-months="12">1年</button>
       </div>
-      <div class="note">紅＝上漲、綠＝下跌｜滑鼠或手指移動可查看單日資料</div>
+      <div class="chart-options"><label class="note">副圖 <select id="subchartSelect"><option value="volume">成交量</option><option value="kd">KD（9,3,3）</option><option value="macd">MACD（12,26,9）</option></select></label><label class="note" style="color:#fb7185"><input id="bollingerToggle" type="checkbox"> 布林通道（20,2）</label></div>
+    </div>
+    <div class="toolbar" id="maControls" aria-label="均線顯示設定">
+      <div class="ranges">
+        <label style="color:#fbbf24"><input type="checkbox" data-ma="5" checked> 5 日均線</label>
+        <label style="color:#38bdf8"><input type="checkbox" data-ma="20" checked> 20 日均線</label>
+        <label style="color:#c084fc"><input type="checkbox" data-ma="60" checked> 60 日均線</label>
+      </div>
+      <div class="note">收盤價簡單平均（SMA），含當根 K 線；不足天數不繪製，未還原除權息</div>
     </div>
     <div class="chart-wrap" id="chartWrap">
       <canvas id="chart"></canvas>
@@ -93,13 +141,45 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
     </div>
   </div>
 
+  <section class="panel flow-panel" aria-labelledby="flowTitle">
+    <div class="flow-head"><h2 id="flowTitle">大單／小單成交推估</h2>
+      <label class="flow-setting">大單門檻 <input id="flowThreshold" type="number" min="1" max="10000" step="1" value="50"> 張以上</label>
+    </div>
+    <div id="flowStatus" class="depth-meta" role="status">等待股票與盤中成交快照</div>
+    <div class="flow-cards">
+      <div class="flow-card"><h3>大單（≥ <span id="largeLabel">50</span> 張）</h3><div class="flow-numbers"><span class="depth-buy">推估主動買 <strong id="largeBuy">0</strong> 張</span><span class="depth-sell">推估主動賣 <strong id="largeSell">0</strong> 張</span></div><div id="largeNet" class="flow-net">淨額 0 張</div></div>
+      <div class="flow-card"><h3>小單（＜ <span id="smallLabel">50</span> 張）</h3><div class="flow-numbers"><span class="depth-buy">推估主動買 <strong id="smallBuy">0</strong> 張</span><span class="depth-sell">推估主動賣 <strong id="smallSell">0</strong> 張</span></div><div id="smallNet" class="flow-net">淨額 0 張</div></div>
+    </div>
+    <canvas id="flowChart" aria-label="網頁開啟期間大單與小單累積淨額圖"></canvas>
+    <div id="flowUnknown" class="depth-meta">尚無無法判斷方向的成交</div>
+    <div class="depth-note">這是快照推估，不是「大戶／散戶」身分資料。只累積本頁在一般盤開啟期間、每 10 秒快照碰到的最後一筆成交，期間可能有多筆成交未被取到，因此不可與完整成交明細或券商指標直接比較。方向先依成交價與最佳買賣價判定，價差內再用價格升降推估；無法判斷者另外列出。切換股票、重新整理或修改門檻會歸零。</div>
+  </section>
+
+
   <div class="footer">資料來自臺灣證券交易所（TWSE）與證券櫃檯買賣中心（TPEx）公開介面。本工具僅供資訊展示，不構成投資建議。</div>
 </div>
 
+<script src="/depth.js"></script>
+<script src="/trade-flow-core.js"></script>
+<script src="/trade-flow.js"></script>
+<script src="/chart-indicators.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-const state={symbol:"006208",months:3,candles:[],hoverIndex:null,geom:null};
-const fmt=v=>v==null?"—":(v>=1000?v.toFixed(0):v>=100?v.toFixed(1):v.toFixed(2));
+const state={symbol:"006208",months:3,candles:[],hoverIndex:null,geom:null,subchart:"volume",bollinger:false};
+const maColors={5:'#fbbf24',20:'#38bdf8',60:'#c084fc'};
+const enabledMA=new Set([5,20,60]);
+function withMovingAverages(rows){
+  return rows.map((row,i)=>{
+    const ma={};
+    for(const period of [5,20,60]){
+      const window=rows.slice(Math.max(0,i-period+1),i+1);
+      ma[period]=window.length===period && window.every(x=>Number.isFinite(x.close))
+        ? window.reduce((sum,x)=>sum+x.close,0)/period : null;
+    }
+    return {...row,ma};
+  });
+}
+const fmt=v=>v==null?"—":v.toLocaleString('zh-TW',{maximumFractionDigits:2});
 const fmtVolLots=v=>v==null?"—":Math.round(v).toLocaleString("zh-TW")+" 張";
 const sharesToLots=v=>v==null?null:v/1000;
 
@@ -122,7 +202,7 @@ function quote(q){
   $("lowText").textContent=fmt(q.low);
   $("prevText").textContent=fmt(q.prev);
   $("volumeText").textContent=fmtVolLots(q.volumeLots);
-  $("timeText").textContent=q.time||q.date||"—";
+  $("timeText").textContent=[q.date,q.time].filter(Boolean).join(' ')||"—";
   $("quoteSource").textContent=q.source||"—";
 }
 
@@ -142,19 +222,19 @@ function draw(){
     return;
   }
 
-  const pad={l:62,r:18,t:18,b:30},volH=105,gap=16;
-  const priceH=H-pad.t-pad.b-volH-gap;
+  const pad={l:62,r:18,t:18,b:30},subH=115,gap=16;
+  const priceH=H-pad.t-pad.b-subH-gap;
   const ps=data.flatMap(v=>[v.high,v.low]);
+  for(const v of data) for(const period of enabledMA) if(v.ma?.[period]!=null) ps.push(v.ma[period]);
+  if(state.bollinger)for(const v of data)if(v.bb)ps.push(v.bb.upper,v.bb.lower);
   let min=Math.min(...ps),max=Math.max(...ps),e=(max-min)*.07||1;
   min-=e;max+=e;
-  const maxVol=Math.max(...data.map(v=>v.volumeShares||0),1)*1.12;
   const inner=W-pad.l-pad.r,step=inner/data.length;
   const bw=Math.max(2,Math.min(9,step*.64));
   const yp=v=>pad.t+(max-v)/(max-min)*priceH;
   const vt=pad.t+priceH+gap;
-  const yv=v=>vt+volH-(v/maxVol)*volH;
 
-  state.geom={pad,volH,gap,priceH,min,max,maxVol,inner,step,bw,vt,W,H,yp,yv};
+  state.geom={pad,subH,gap,priceH,min,max,inner,step,bw,vt,W,H,yp};
 
   x.font="12px sans-serif";
   for(let i=0;i<5;i++){
@@ -172,11 +252,46 @@ function draw(){
     x.beginPath();x.moveTo(cx,yp(v.high));x.lineTo(cx,yp(v.low));x.stroke();
     let yo=yp(v.open),yc=yp(v.close),top=Math.min(yo,yc),bh=Math.max(1.5,Math.abs(yc-yo));
     x.fillRect(cx-bw/2,top,bw,bh);
-    let vy=yv(v.volumeShares||0);
-    x.globalAlpha=.55;x.fillRect(cx-bw/2,vy,bw,vt+volH-vy);x.globalAlpha=1;
   });
 
+  if(state.bollinger){
+    for(const [key,color] of [['upper','#fb7185'],['middle','#fda4af'],['lower','#fb7185']])drawSeries(x,data,v=>v.bb?.[key],color,yp,pad.l,step,key==='middle'?1.3:1);
+  }
+
+  for(const period of enabledMA){
+    x.beginPath();x.strokeStyle=maColors[period];x.lineWidth=1.6;
+    let connected=false;
+    data.forEach((v,i)=>{
+      const value=v.ma?.[period];
+      if(value==null){connected=false;return}
+      const cx=pad.l+step*i+step/2;
+      if(connected)x.lineTo(cx,yp(value));else x.moveTo(cx,yp(value));
+      connected=true;
+    });
+    x.stroke();
+  }
+  drawSubchart(x,data,{pad,subH,inner,step,bw,vt,W});
   if(state.hoverIndex!=null && data[state.hoverIndex]) drawCrosshair(x,state.hoverIndex);
+}
+
+function drawSeries(ctx,data,value,color,y,left,step,width=1.5){
+  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=width;let connected=false;
+  data.forEach((v,i)=>{const n=value(v);if(!Number.isFinite(n)){connected=false;return}const cx=left+step*i+step/2;if(connected)ctx.lineTo(cx,y(n));else ctx.moveTo(cx,y(n));connected=true;});ctx.stroke();
+}
+function drawSubchart(x,data,g){
+  const {pad,subH,step,bw,vt,W}=g;x.font='11px sans-serif';
+  if(state.subchart==='volume'){
+    const top=Math.max(...data.map(v=>v.volumeShares||0),1)*1.12,y=v=>vt+subH-v/top*subH;
+    data.forEach((v,i)=>{x.fillStyle=v.close>=v.open?'#ef444488':'#22c55e88';const cx=pad.l+step*i+step/2,vy=y(v.volumeShares||0);x.fillRect(cx-bw/2,vy,bw,vt+subH-vy);});x.fillStyle='#8da0b8';x.fillText('成交量',7,vt+12);return;
+  }
+  if(state.subchart==='kd'){
+    const y=v=>vt+subH-(v/100)*subH;for(const n of [20,50,80]){x.strokeStyle='#26354b';x.beginPath();x.moveTo(pad.l,y(n));x.lineTo(W-pad.r,y(n));x.stroke();x.fillStyle='#8da0b8';x.fillText(String(n),23,y(n)+4);}
+    drawSeries(x,data,v=>v.kd?.k,'#fbbf24',y,pad.l,step);drawSeries(x,data,v=>v.kd?.d,'#38bdf8',y,pad.l,step);x.fillStyle='#fbbf24';x.fillText('K',7,vt+12);x.fillStyle='#38bdf8';x.fillText('D',22,vt+12);return;
+  }
+  const values=data.flatMap(v=>v.macd?[v.macd.dif,v.macd.signal,v.macd.hist]:[]),bound=Math.max(1e-6,...values.map(Math.abs))*1.15,y=v=>vt+subH/2-v/bound*(subH*.46);
+  x.strokeStyle='#26354b';x.beginPath();x.moveTo(pad.l,y(0));x.lineTo(W-pad.r,y(0));x.stroke();
+  data.forEach((v,i)=>{if(!v.macd)return;const cx=pad.l+step*i+step/2,zero=y(0),hy=y(v.macd.hist);x.fillStyle=v.macd.hist>=0?'#ef444488':'#22c55e88';x.fillRect(cx-bw/2,Math.min(zero,hy),bw,Math.max(1,Math.abs(hy-zero)));});
+  drawSeries(x,data,v=>v.macd?.dif,'#fbbf24',y,pad.l,step);drawSeries(x,data,v=>v.macd?.signal,'#38bdf8',y,pad.l,step);x.fillStyle='#8da0b8';x.fillText('MACD',7,vt+12);
 }
 
 function drawCrosshair(ctx,index){
@@ -189,7 +304,7 @@ function drawCrosshair(ctx,index){
   ctx.setLineDash([5,5]);
   ctx.strokeStyle="rgba(226,232,240,.62)";
   ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(cx,g.pad.t);ctx.lineTo(cx,g.vt+g.volH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,g.pad.t);ctx.lineTo(cx,g.vt+g.subH);ctx.stroke();
   ctx.beginPath();ctx.moveTo(g.pad.l,cy);ctx.lineTo(g.W-g.pad.r,cy);ctx.stroke();
   ctx.restore();
 
@@ -209,8 +324,12 @@ function showTooltip(index,clientX,clientY){
     <div class="row"><span class="k">最高</span><span class="v">${fmt(v.high)}</span></div>
     <div class="row"><span class="k">最低</span><span class="v">${fmt(v.low)}</span></div>
     <div class="row"><span class="k">收盤</span><span class="v">${fmt(v.close)}</span></div>
-    <div class="row"><span class="k">漲跌</span><span class="v" style="color:${ch>=0?"var(--up)":"var(--down)"}">${ch>=0?"+":""}${fmt(ch)}</span></div>
+    <div class="row"><span class="k">收盤－開盤</span><span class="v" style="color:${ch>=0?"var(--up)":"var(--down)"}">${ch>=0?"+":""}${fmt(ch)}</span></div>
     <div class="row"><span class="k">成交量</span><span class="v">${fmtVolLots(volLots)}</span></div>
+    ${[...enabledMA].sort((a,b)=>a-b).map(period=>`<div class="row"><span style="color:${maColors[period]}">${period} 日均線</span><span class="v">${v.ma?.[period]==null?'資料不足':fmt(v.ma[period])}</span></div>`).join('')}
+    ${state.bollinger?`<div class="row"><span style="color:#fb7185">布林 上／中／下</span><span class="v">${v.bb?`${fmt(v.bb.upper)}／${fmt(v.bb.middle)}／${fmt(v.bb.lower)}`:'資料不足'}</span></div>`:''}
+    ${state.subchart==='kd'?`<div class="row"><span class="k">KD</span><span class="v">${v.kd?`K ${fmt(v.kd.k)}／D ${fmt(v.kd.d)}`:'資料不足'}</span></div>`:''}
+    ${state.subchart==='macd'?`<div class="row"><span class="k">MACD</span><span class="v">${v.macd?`DIF ${fmt(v.macd.dif)}／訊號 ${fmt(v.macd.signal)}／柱 ${fmt(v.macd.hist)}`:'資料不足'}</span></div>`:''}
   `;
   tip.style.display="block";
 
@@ -287,6 +406,7 @@ searchInput.addEventListener("input", () => {
   searchTimer = setTimeout(async () => {
     try {
       const data = await getJSON(`/api/search?q=${encodeURIComponent(q)}`);
+      if(searchInput.value.trim()!==q) return;
 
       if (!data.results || data.results.length === 0) {
         suggestions.style.display = "none";
@@ -323,46 +443,66 @@ document.addEventListener("click", (e) => {
     suggestions.style.display = "none";
   }
 });
+let loadVersion=0;
 async function load(){
+  const version=++loadVersion;
+  depthController.reset();
   let s=$("symbolInput").value.trim();
-if(!s){alert("請輸入股票／ETF 代號或名稱");return}
-
-if(!/^[0-9A-Za-z]{4,6}$/.test(s)){
-  const search=await getJSON(`/api/search?q=${encodeURIComponent(s)}`);
-  if(!search.results || search.results.length===0){
-    alert("找不到這個股票／ETF 名稱");
-    return;
-  }
-  s=search.results[0].symbol;
-}
-  state.symbol=s;
+  state.candles=[];
   state.hoverIndex=null;
   $("tooltip").style.display="none";
+  suggestions.style.display="none";
+  for(const id of ['symbolText','nameText','priceText','deltaText','marketText','openText','highText','lowText','prevText','volumeText','timeText']) $(id).textContent='—';
+  $('quoteSource').textContent='尚未取得行情';
+  draw();
   status(`正在查詢 ${s}…`);
 
   try{
+    if(!s) throw new Error('請輸入股票／ETF 代號或名稱');
+    if(!/^[0-9A-Za-z]{4,6}$/.test(s)){
+      const search=await getJSON(`/api/search?q=${encodeURIComponent(s)}`);
+      if(version!==loadVersion)return;
+      if(!search.results?.length) throw new Error('找不到這個股票／ETF 名稱');
+      const exact=search.results.find(x=>x.name===s);
+      if(!exact && search.results.length>1) throw new Error('符合多檔股票，請從搜尋建議選擇或輸入完整代號');
+      s=(exact||search.results[0]).symbol;
+    }
+    state.symbol=s;
     const [hist,snapResult,realResult]=await Promise.all([
       getJSON(`/api/history/${s}?months=${state.months}`),
       getJSON(`/api/snapshot/${s}`).catch(e=>null),
       getJSON(`/api/realtime/${s}`).catch(e=>null)
     ]);
+    if(version!==loadVersion)return;
 
-    state.candles=hist.data||[];
+    const warmup=hist.warmup||[];
+    state.candles=ChartIndicators.add(withMovingAverages([...warmup,...(hist.data||[])])).slice(warmup.length);
     draw();
 
-    const q=realResult||snapResult;
+    const q=realResult && (!snapResult || realResult.date>=snapResult.date) ? realResult : snapResult;
     if(!q)throw new Error("目前無法取得行情");
     quote(q);
-    status(`已載入 ${q.name||s} 與 ${state.candles.length} 根日 K`,"ok");
+    depthController.start(s,q.market,q.name);
+    const lastDate=state.candles.at(-1)?.date;
+    const warning=[hist.warning, !state.candles.length?'目前沒有 K 線資料':'',lastDate && q.date!==lastDate?'行情與 K 線日期不同，官方來源更新時間可能不同':''].filter(Boolean).join('；');
+    status(`已載入 ${q.name||s} 與 ${state.candles.length} 根日 K；行情日期 ${q.date||'未提供'}；K 線截至 ${lastDate||'無資料'}${warning?'｜'+warning:''}`,warning?'loading':'ok');
   }catch(e){
+    if(version!==loadVersion)return;
     status(`查詢失敗：${e.message}`,"err");
   }
 }
 
 $("searchBtn").onclick=load;
+$("subchartSelect").addEventListener('change',e=>{state.subchart=e.target.value;hideTooltip();});
+$("bollingerToggle").addEventListener('change',e=>{state.bollinger=e.target.checked;hideTooltip();});
+document.querySelectorAll('[data-ma]').forEach(input=>input.addEventListener('change',()=>{
+  const period=Number(input.dataset.ma);
+  if(input.checked)enabledMA.add(period);else enabledMA.delete(period);
+  hideTooltip();
+}));
 $("symbolInput").addEventListener("keydown",e=>{if(e.key==="Enter")load()});
-document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+document.querySelectorAll("[data-months]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("[data-months]").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   state.months=Number(b.dataset.months);
   load();
