@@ -4,6 +4,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const {parseOrderBook}=require('./orderbook');
 
+// MIS 的 z/s 是這一個 5 秒揭示是否有成交；沒有成交時會是「-」。
+// 保留本服務已看見的今日最近成交價，避免下一個無成交快照把價格抹掉。
+const latestTrades=new Map();
+
+app.use('/api',(_req,res,next)=>{
+  res.set('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma','no-cache');
+  res.set('Expires','0');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; TaiwanStockKline/2.0)' };
@@ -175,14 +185,27 @@ async function misQuote(symbol, market){
   const url=`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${prefix}_${encodeURIComponent(symbol)}.tw&json=1&delay=0&_=${Date.now()}`;
   const j=await jsonFetch(url);
   if(!j.msgArray || !j.msgArray.length) return null;
-  const x=j.msgArray[0], z=asNum(x.z), y=asNum(x.y);
-  if(z===null || !x.d) return null;
+  const x=j.msgArray.find(row=>row.c===symbol&&row.ex===prefix) || j.msgArray[0];
+  const q=parseLiveRow(x,market);
+  if(q.close===null || !q.date) return null;
+  const isMid=q.priceKind==='midquote';
   return {
     market, symbol, name:x.n || x.nf || symbol,
-    open:asNum(x.o), high:asNum(x.h), low:asNum(x.l), close:z, prev:y, date:rocDateToISO(x.d),
-    volumeLots:asNum(x.v), time:x.t || x.ot || '盤中',
-    source:`TWSE MIS ${market==='TPEx'?'上櫃':'上市'}最近成交行情（非串流）`
+    open:q.open, high:q.high, low:q.low, close:q.close, prev:q.prev, date:q.date,
+    volumeLots:q.volumeLots, time:q.time || x.ot || '盤中', fetchedAt:q.fetchedAt,
+    priceKind:q.priceKind,
+    source:isMid
+      ? `TWSE MIS ${market==='TPEx'?'上櫃':'上市'}最佳買賣中間價（此快照無成交，非成交價）`
+      : `TWSE MIS ${market==='TPEx'?'上櫃':'上市'}最近成交價（5 秒行情快照）`
   };
+}
+
+function parseLiveRow(row,market){
+  const key=`${market}:${row.c}`;
+  const previous=latestTrades.get(key)||null;
+  const q=parseOrderBook(row,market,new Date(),previous);
+  if(q.marketPoint?.kind==='trade'&&!q.marketPoint.retained) latestTrades.set(key,q.marketPoint);
+  return q;
 }
 
 app.get('/api/realtime/:symbol', async (req,res)=>{
@@ -208,7 +231,12 @@ app.get('/api/orderbook/:symbol',async(req,res)=>{
     const j=await jsonFetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${ex}_${encodeURIComponent(symbol)}.tw&json=1&delay=0&_=${Date.now()}`);
     const row=j.msgArray?.find(x=>x.c===symbol&&x.ex===ex);
     if(!row)return res.status(404).json({error:'官方目前未提供這檔股票的五檔資料'});
-    res.json(parseOrderBook(row,market));
+    const q=parseLiveRow(row,market);
+    const marketName=market==='TPEx'?'上櫃':'上市';
+    q.source=q.priceKind==='midquote'
+      ? `TWSE MIS ${marketName}五檔快照；本次無成交價，價格點為買賣中間價`
+      : `TWSE MIS ${marketName}五檔與最近成交快照`;
+    res.json(q);
   }catch(e){res.status(502).json({error:'五檔來源暫時無法連線，請稍後重試'});}
 });
 

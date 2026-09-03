@@ -67,14 +67,35 @@ canvas{width:100%;height:540px;display:block;background:#091321;border-radius:12
 .depth-table td.depth-buy{background-image:linear-gradient(#ef444424,#ef444424)}
 .depth-table td.depth-sell{background-image:linear-gradient(#22c55e24,#22c55e24)}
 .depth-note{line-height:1.8;font-size:12px;color:var(--muted)}
+.connection-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#172033;color:var(--muted);font-size:12px;font-weight:700}
+.connection-badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.connection-badge.live{color:#a7f3d0;background:#064e3b66}.connection-badge.live::before{background:var(--ok)}
+.connection-badge.error{color:#fecaca;background:#7f1d1d55}.connection-badge.error::before{background:#ef4444}
+.depth-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.info-details{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;color:var(--muted);font-size:12px}
+.info-details summary{cursor:pointer;color:#a9bad0;font-weight:700;user-select:none}.info-details[open] summary{margin-bottom:7px}
+.intraday-panel{margin:18px 0;padding:18px}.intraday-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.intraday-head h2{font-size:20px;margin:0}.intraday-legend{display:flex;gap:13px;color:var(--muted);font-size:12px}
+#intradayChart{width:100%;height:285px;margin-top:10px;background:#091321;border-radius:12px;display:block}
 button:disabled{opacity:.5;cursor:wait}
 .flow-panel{margin:18px 0;padding:18px}.flow-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-.flow-head h2{margin:0;font-size:20px}.flow-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.flow-head h2{margin:0;font-size:20px}.flow-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
 .flow-card{background:#091321;border:1px solid var(--line);border-radius:12px;padding:13px}.flow-card h3{font-size:15px;margin:0 0 9px}
-.flow-numbers{display:flex;justify-content:space-between;gap:8px;font-size:13px}.flow-net{font-size:20px;font-weight:850;margin-top:10px}
+.flow-value{font-size:23px;font-weight:850;margin:7px 0}.flow-sub{color:var(--muted);font-size:12px;line-height:1.5}
+.flow-alert{margin:10px 0;padding:9px 11px;border-radius:9px;background:#172033;color:var(--muted);font-weight:750}.flow-alert.active{background:#78350f88;color:#fde68a}
 #flowChart{width:100%;height:260px;background:#091321;border-radius:12px;display:block}
 .flow-setting{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}.flow-setting input{width:76px;padding:7px 8px;font-size:13px}
-@media(max-width:600px){.flow-cards{grid-template-columns:1fr}#flowChart{height:230px}}
+@media(max-width:950px){.flow-cards{grid-template-columns:1fr 1fr}}@media(max-width:600px){.flow-cards{grid-template-columns:1fr}#flowChart{height:230px}}
+@media(max-width:700px){
+  .wrap{padding:9px}.header{margin-bottom:11px}.subtitle{font-size:12px}.panel{border-radius:12px}
+  .summary,.depth-panel,.intraday-panel,.flow-panel{padding:13px}.summary-grid{gap:12px}.metric strong{font-size:16px}
+  button{min-height:44px}.search{gap:6px}.search input{padding:12px 11px}.search .primary{padding:10px 14px}
+  .depth-header,.intraday-head,.flow-head{align-items:flex-start}.depth-header .ranges{width:100%;justify-content:space-between;align-items:center}
+  .connection-badge{order:-1}.depth-table{min-width:520px;margin:10px 0}.depth-table th,.depth-table td{padding:9px 5px}
+  .toolbar{padding:10px;align-items:flex-start}.toolbar>.ranges{width:100%;display:grid;grid-template-columns:repeat(4,1fr)}.toolbar>.ranges .chip{padding:8px 4px}
+  #maControls>.ranges{display:flex;overflow-x:auto;white-space:nowrap;padding-bottom:3px}.chart-wrap{padding:8px}#chart{height:410px}
+  #intradayChart{height:235px}.flow-numbers{flex-direction:column;gap:6px}#flowChart{height:215px}
+}
 </style>
 </head>
 <body>
@@ -91,7 +112,7 @@ button:disabled{opacity:.5;cursor:wait}
   <div class="panel status"><span class="dot" id="statusDot"></span><span id="statusText">準備查詢…</span></div>
 
   <div class="panel summary"><div class="summary-grid">
-    <div class="main-stock"><div class="stock-code" id="symbolText">006208</div><div class="stock-name" id="nameText">—</div><div class="price-row"><span class="price" id="priceText">—</span><span class="delta" id="deltaText">—</span></div><div class="source"><span id="marketText">—</span>｜<span id="quoteSource">尚未取得行情</span></div></div>
+    <div class="main-stock"><div class="stock-code" id="symbolText">006208</div><div class="stock-name" id="nameText">—</div><div class="price-row"><span class="price" id="priceText">—</span><span class="delta" id="deltaText">—</span><span class="note" id="priceKindText"></span></div><div class="source"><span id="marketText">—</span>｜<span id="quoteSource">尚未取得行情</span></div></div>
     <div class="metric"><small>開盤</small><strong id="openText">—</strong></div>
     <div class="metric"><small>最高</small><strong id="highText">—</strong></div>
     <div class="metric"><small>最低</small><strong id="lowText">—</strong></div>
@@ -102,19 +123,27 @@ button:disabled{opacity:.5;cursor:wait}
 
   <section class="panel depth-panel" aria-labelledby="depthTitle">
     <div class="depth-header"><h2 id="depthTitle">五檔買賣委託</h2><div class="ranges">
-      <label class="note"><input id="depthAuto" type="checkbox" checked> 一般盤每 10 秒更新</label>
+      <span id="depthConnection" class="connection-badge">等待查詢</span>
+      <label class="note"><input id="depthAuto" type="checkbox" checked> 盤中每 5 秒更新</label>
       <button class="chip" id="depthRefresh" disabled>更新五檔</button>
     </div></div>
     <div id="depthStatus" class="depth-meta" role="status">請先查詢股票</div>
     <div class="depth-totals"><span class="depth-buy">買方掛單 <strong id="bidTotal">—</strong></span><span class="depth-sell">賣方掛單 <strong id="askTotal">—</strong></span></div>
     <div class="depth-ratio" aria-hidden="true"><span id="bidBar" class="buy"></span><span id="askBar" class="sell"></span></div>
     <div id="depthRatio" class="depth-meta">等待五檔資料</div>
-    <table class="depth-table" aria-label="五檔委託價格與數量">
+    <div class="depth-table-wrap"><table class="depth-table" aria-label="五檔委託價格與數量">
       <thead><tr><th>買量（張）</th><th>買價（元）</th><th class="level">檔位</th><th>賣價（元）</th><th>賣量（張）</th></tr></thead>
       <tbody id="depthRows"></tbody>
-    </table>
+    </table></div>
     <div id="depthTime" class="depth-meta">尚未取得資料</div>
-    <div class="depth-note">比較的是已揭示的最佳五檔未成交委託張數，不是買賣人數、內外盤成交量或全市場委託。掛單可撤銷，比例不代表股價一定上漲或下跌。<br>一般盤自動查詢時段：台北時間週一至週五 09:00–13:30（不另判斷休市日）；網頁在背景時暫停。來源可能延遲，非逐筆串流；盤後僅供查看最後揭示資料。<br><a href="https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=14" target="_blank" rel="noopener" style="color:var(--blue)">證交所五檔委託說明</a></div>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">比較的是已揭示的最佳五檔未成交委託張數，不是買賣人數、內外盤成交量或全市場委託。掛單可撤銷，比例不代表股價一定上漲或下跌。<br>一般盤自動查詢時段：台北時間週一至週五 09:00–13:30（不另判斷休市日）；網頁在背景時暫停。來源可能延遲，非逐筆串流；盤後僅供查看最後揭示資料。<br><a href="https://investoredu.twse.com.tw/pages/TWSE_InvestmentQA.aspx?ID=14" target="_blank" rel="noopener" style="color:var(--blue)">證交所五檔委託說明</a></div></details>
+  </section>
+
+  <section class="panel intraday-panel" aria-labelledby="intradayTitle">
+    <div class="intraday-head"><h2 id="intradayTitle">今日分時走勢</h2><div class="intraday-legend"><span style="color:#fbbf24">● 成交／中間價</span><span style="color:#60a5fa">● 快照均價</span></div></div>
+    <div id="intradayStatus" class="depth-meta" role="status">等待股票查詢完成</div>
+    <canvas id="intradayChart" aria-label="今日網頁開啟期間的分時成交價與均價走勢"></canvas>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">分時圖從本頁開啟後每 5 秒保留一個價格點，舊點不會消失；最多保留 4,000 點，足以涵蓋完整一般盤並控制手機記憶體用量。重新整理或切換股票會重新開始。交易所快照提供成交價時使用成交價，未提供時以最佳買價與賣價的中間值補足並清楚標示。黃線是成交／中間價，藍線是本頁快照均價。這不是交易所完整逐筆資料。</div></details>
   </section>
 
   <div class="panel">
@@ -142,17 +171,19 @@ button:disabled{opacity:.5;cursor:wait}
   </div>
 
   <section class="panel flow-panel" aria-labelledby="flowTitle">
-    <div class="flow-head"><h2 id="flowTitle">大單／小單成交推估</h2>
-      <label class="flow-setting">大單門檻 <input id="flowThreshold" type="number" min="1" max="10000" step="1" value="50"> 張以上</label>
+    <div class="flow-head"><h2 id="flowTitle">5 秒量能與買賣壓力</h2>
+      <label class="flow-setting">放量提醒 <input id="flowThreshold" type="number" min="1" max="10000" step="1" value="50"> 張／5 秒以上</label>
     </div>
-    <div id="flowStatus" class="depth-meta" role="status">等待股票與盤中成交快照</div>
+    <div id="flowStatus" class="depth-meta" role="status">等待股票與盤中快照</div>
     <div class="flow-cards">
-      <div class="flow-card"><h3>大單（≥ <span id="largeLabel">50</span> 張）</h3><div class="flow-numbers"><span class="depth-buy">推估主動買 <strong id="largeBuy">0</strong> 張</span><span class="depth-sell">推估主動賣 <strong id="largeSell">0</strong> 張</span></div><div id="largeNet" class="flow-net">淨額 0 張</div></div>
-      <div class="flow-card"><h3>小單（＜ <span id="smallLabel">50</span> 張）</h3><div class="flow-numbers"><span class="depth-buy">推估主動買 <strong id="smallBuy">0</strong> 張</span><span class="depth-sell">推估主動賣 <strong id="smallSell">0</strong> 張</span></div><div id="smallNet" class="flow-net">淨額 0 張</div></div>
+      <div class="flow-card"><h3>最近 5 秒成交量</h3><div id="flowInterval" class="flow-value">0 張</div><div id="flowBurst" class="flow-alert">等待基準</div></div>
+      <div class="flow-card"><h3>最近 1 分鐘量能</h3><div id="flowMinute" class="flow-value">0 張</div><div id="flowSession" class="flow-sub">本頁累計 0 張</div></div>
+      <div class="flow-card"><h3>五檔掛單壓力</h3><div id="flowPressure" class="flow-value">—</div><div id="flowPressureNote" class="flow-sub">等待完整雙邊五檔</div></div>
+      <div class="flow-card"><h3>短線價格方向</h3><div id="flowDirection" class="flow-value">等待資料</div><div id="flowMove" class="flow-sub">尚無比較基準</div></div>
     </div>
-    <canvas id="flowChart" aria-label="網頁開啟期間大單與小單累積淨額圖"></canvas>
-    <div id="flowUnknown" class="depth-meta">尚無無法判斷方向的成交</div>
-    <div class="depth-note">這是快照推估，不是「大戶／散戶」身分資料。只累積本頁在一般盤開啟期間、每 10 秒快照碰到的最後一筆成交，期間可能有多筆成交未被取到，因此不可與完整成交明細或券商指標直接比較。方向先依成交價與最佳買賣價判定，價差內再用價格升降推估；無法判斷者另外列出。切換股票、重新整理或修改門檻會歸零。</div>
+    <canvas id="flowChart" aria-label="網頁開啟期間每 5 秒成交量與買方五檔占比圖"></canvas>
+    <div id="flowActual" class="depth-meta">目前未取得含完整成交價量的快照</div>
+    <details class="info-details"><summary>資料說明</summary><div class="depth-note">每 5 秒量能是兩次官方累計成交量的差，不會因單次快照缺少成交價而停止。黃色線是已揭示五檔中買方掛單占比，藍色柱是每 5 秒成交量增量，橘色柱代表達到自訂放量門檻。「放量」可能由多筆成交合計，不代表單一大戶或一張大單；掛單也可能撤銷，因此只用來觀察短線量價與委託壓力。切換股票、重新整理或修改門檻會重新建立基準。</div></details>
   </section>
 
 
@@ -160,6 +191,7 @@ button:disabled{opacity:.5;cursor:wait}
 </div>
 
 <script src="/depth.js"></script>
+<script src="/intraday.js"></script>
 <script src="/trade-flow-core.js"></script>
 <script src="/trade-flow.js"></script>
 <script src="/chart-indicators.js"></script>
@@ -192,6 +224,7 @@ function quote(q){
   $("nameText").textContent=q.name||"—";
   $("marketText").textContent=q.market==="TPEx"?"上櫃 TPEx":"上市 TWSE";
   $("priceText").textContent=fmt(q.close);
+  $("priceKindText").textContent=q.priceKind==='midquote'?'買賣中間價（非成交價）':q.priceKind==='trade'?'最近成交價':'';
   const ch=(q.close!=null&&q.prev!=null)?q.close-q.prev:q.change;
   const pct=(ch!=null&&q.prev)?ch/q.prev*100:null;
   const d=$("deltaText");
@@ -383,11 +416,17 @@ canvas.addEventListener("touchend",e=>{
 },{passive:true});
 
 async function getJSON(url){
-  const r=await fetch(url);
+  const r=await fetch(url,{cache:'no-store'});
   const j=await r.json();
   if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);
   return j;
 }
+
+// 五檔控制器盤中每 5 秒取得 MIS；同步更新上方行情卡，避免停在查詢當下或昨日盤後價。
+document.addEventListener('depth-snapshot',e=>{
+  const q=e.detail;
+  if(q?.symbol===state.symbol&&Number.isFinite(q.close)) quote(q);
+});
 const searchInput = $("symbolInput");
 const suggestions = $("searchSuggestions");
 let searchTimer = null;
@@ -453,6 +492,7 @@ async function load(){
   $("tooltip").style.display="none";
   suggestions.style.display="none";
   for(const id of ['symbolText','nameText','priceText','deltaText','marketText','openText','highText','lowText','prevText','volumeText','timeText']) $(id).textContent='—';
+  $('priceKindText').textContent='';
   $('quoteSource').textContent='尚未取得行情';
   draw();
   status(`正在查詢 ${s}…`);
